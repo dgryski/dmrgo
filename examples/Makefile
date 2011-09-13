@@ -13,7 +13,13 @@ wordcount_test:	wordcount data.in
 		@[ "6aef73971d21f5c27cffb9c36b0517cc  data.out" = "`md5sum data.out`" ] || echo "Fail"
 
 wordcount_test_hadoop:	wordcount data.in
-	/usr/bin/hadoop jar /usr/share/hadoop/contrib/streaming/hadoop-*streaming*.jar  -mapper "${PWD}/wordcount --mapper" -reducer "${PWD}/wordcount --reducer" -input "${PWD}/data.in" -output /tmp/mrtest/mrtest-output
+	${HADOOP_HOME}/bin/hadoop fs -ls data.in && ${HADOOP_HOME}/bin/hadoop fs -rm data.in
+	${HADOOP_HOME}/bin/hadoop fs -put data.in data.in
+	${HADOOP_HOME}/bin/hadoop fs -test -d data.out && ${HADOOP_HOME}/bin/hadoop fs -rmr data.out
+	${HADOOP_HOME}/bin/hadoop jar ${HADOOP_HOME}/contrib/streaming/hadoop-*streaming*.jar -verbose -mapper "${PWD}/wordcount --mapper" -reducer "${PWD}/wordcount --reducer" -input "data.in" -output "data.out"
+	rm -rf data.out
+	${HADOOP_HOME}/bin/hadoop fs -get data.out data.out
+	md5sum data.out/part-00000
 
 data.in:
 	cat /usr/share/common-licenses/GPL-3 | tr A-Z a-z |tr -c "a-z \n" ' ' >data.in
