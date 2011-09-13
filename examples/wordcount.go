@@ -59,21 +59,21 @@ func (mr *MRWordCount) Map(key string, value string) []*dmrgo.KeyValue {
 	kvs := make([]*dmrgo.KeyValue, len(words))
 	for i, word := range words {
 
-                mr.mappedWords++
-                 if mr.mappedWords % 1000 == 0 {
-                    dmrgo.Statusln("mapped ", mr.mappedWords)
-                 }
+		mr.mappedWords++
+		if mr.mappedWords%1000 == 0 {
+			dmrgo.Statusln("mapped ", mr.mappedWords)
+		}
 
 		kvs[i] = mr.protocol.MarshalKV(word, 1)
 	}
 
-        dmrgo.IncrCounter("Program", "mapped lines", 1)
+	dmrgo.IncrCounter("Program", "mapped lines", 1)
 
 	return kvs
 }
 
 func (mr *MRWordCount) MapFinal() []*dmrgo.KeyValue {
-        dmrgo.Statusln("finished -- mapped ", mr.mappedWords)
+	dmrgo.Statusln("finished -- mapped ", mr.mappedWords)
 	return []*dmrgo.KeyValue{}
 }
 
