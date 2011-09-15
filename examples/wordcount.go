@@ -35,11 +35,8 @@ func (p *WordCountProto) MarshalKV(key interface{}, value interface{}) *dmrgo.Ke
 	return &dmrgo.KeyValue{ks, fmt.Sprintf("%d", vi)}
 }
 
-// word count map/reduce logic here
-// overkill for such a simple example -- we would probably actually inline the conversion routines
-
 type MRWordCount struct {
-	protocol dmrgo.MRProtocol
+	protocol dmrgo.MRProtocol // overkill -- we would normally just inline the un/marshal calls
 
 	// mapper variables
 	mappedWords int
@@ -58,22 +55,17 @@ func (mr *MRWordCount) Map(key string, value string) []*dmrgo.KeyValue {
 	words := strings.Split(strings.TrimSpace(value), " ")
 	kvs := make([]*dmrgo.KeyValue, len(words))
 	for i, word := range words {
-
 		mr.mappedWords++
-		if mr.mappedWords%1000 == 0 {
-			dmrgo.Statusln("mapped ", mr.mappedWords)
-		}
-
 		kvs[i] = mr.protocol.MarshalKV(word, 1)
 	}
-
-	dmrgo.IncrCounter("Program", "mapped lines", 1)
 
 	return kvs
 }
 
 func (mr *MRWordCount) MapFinal() []*dmrgo.KeyValue {
 	dmrgo.Statusln("finished -- mapped ", mr.mappedWords)
+	dmrgo.IncrCounter("Program", "mapped words", mr.mappedWords)
+
 	return []*dmrgo.KeyValue{}
 }
 
