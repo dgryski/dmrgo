@@ -82,24 +82,11 @@ func (mr *MRWordCount) Reduce(key string, values []string) []*dmrgo.KeyValue {
 	return []*dmrgo.KeyValue{mr.protocol.MarshalKV(key, count)}
 }
 
-// A lot of this code is boiler plate code and should be extracted to the library
 func main() {
 
-	var do_map = flag.Bool("mapper", false, "run mapper code on stdin")
-	var do_reduce = flag.Bool("reducer", false, "run reducer on stdin")
 	var use_proto = flag.String("proto", "json", "use protocol (json/wc)")
 
 	flag.Parse()
-
-	if *do_map && *do_reduce {
-		fmt.Println("can either map or reduce, not both")
-		os.Exit(1)
-	}
-
-	if !*do_map && !*do_reduce {
-		fmt.Println("neither map not reduce called")
-		os.Exit(1)
-	}
 
 	var proto dmrgo.MRProtocol
 
@@ -114,13 +101,7 @@ func main() {
 
 	wordCounter := NewWordCount(proto)
 
-	if *do_map {
-		dmrgo.RunMapper(wordCounter, os.Stdin, os.Stdout)
-	}
-
-	if *do_reduce {
-		dmrgo.RunReducer(wordCounter, os.Stdin, os.Stdout)
-	}
+        dmrgo.Main(wordCounter)
 
 	os.Exit(0)
 }

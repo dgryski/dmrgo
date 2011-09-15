@@ -6,6 +6,7 @@ import (
 	"io"
 	"os"
 	"strings"
+	"flag"
 )
 
 type KeyValue struct {
@@ -46,7 +47,37 @@ type MapReduceJob interface {
 	Reduce(key string, values []string) []*KeyValue
 }
 
-func RunMapper(mrjob MapReduceJob, r io.Reader, w io.Writer) {
+var doMap bool
+var doReduce bool
+
+func init() {
+	flag.BoolVar(&doMap, "mapper", false, "run mapper code on stdin")
+	flag.BoolVar(&doReduce, "reducer", false, "run reducer on stdin")
+}
+
+// Main runs the map reduce job passed in
+func Main(mrjob MapReduceJob) {
+
+	if doMap && doReduce {
+		fmt.Println("can either map or reduce, not both")
+		os.Exit(1)
+	}
+
+	if !doMap && !doReduce {
+		fmt.Println("neither map not reduce called")
+		os.Exit(1)
+	}
+
+	if doMap {
+		mapper(mrjob, os.Stdin, os.Stdout)
+	}
+
+	if doReduce {
+		reducer(mrjob, os.Stdin, os.Stdout)
+	}
+}
+
+func mapper(mrjob MapReduceJob, r io.Reader, w io.Writer) {
 
 	br := bufio.NewReader(r)
 
@@ -71,7 +102,7 @@ func RunMapper(mrjob MapReduceJob, r io.Reader, w io.Writer) {
 
 }
 
-func RunReducer(mrjob MapReduceJob, r io.Reader, w io.Writer) {
+func reducer(mrjob MapReduceJob, r io.Reader, w io.Writer) {
 
 	br := bufio.NewReader(r)
 
