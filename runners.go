@@ -1,3 +1,7 @@
+// Protocols for un/marshaling stream values
+// Copyright (c) 2011 Damian Gryski <damian@gryski.com>
+// License: GPLv3 or, at your option, any later version
+
 package dmrgo
 
 import (
@@ -9,6 +13,7 @@ import (
 	"flag"
 )
 
+// KeyValue is the primary type for interacting with Hadoop.
 type KeyValue struct {
 	Key   string
 	Value string
@@ -41,12 +46,18 @@ func readLineKeyValue(br *bufio.Reader) (*KeyValue, os.Error) {
 	return &KeyValue{k, v}, nil
 }
 
+// MapReduceJob is the interface expected by the job runner
 type MapReduceJob interface {
+
 	Map(key string, value string) []*KeyValue
+
+        // Called at the end of the Map phase 
 	MapFinal() []*KeyValue
+
 	Reduce(key string, values []string) []*KeyValue
 }
-
+ 
+// are in we in the map or reduce phase?
 var doMap bool
 var doReduce bool
 
@@ -77,6 +88,7 @@ func Main(mrjob MapReduceJob) {
 	}
 }
 
+// run the mapping phase, calling the map routine on key/value pairs on stdin and writing the results to stdout
 func mapper(mrjob MapReduceJob, r io.Reader, w io.Writer) {
 
 	br := bufio.NewReader(r)
@@ -102,6 +114,8 @@ func mapper(mrjob MapReduceJob, r io.Reader, w io.Writer) {
 
 }
 
+// run the mapping phase, calling the reduce routine on key/[]value read from stdin and writing the results to stdout
+// We aggregate the values that have been mapped with the same key, then call the users Reduce function
 func reducer(mrjob MapReduceJob, r io.Reader, w io.Writer) {
 
 	br := bufio.NewReader(r)
