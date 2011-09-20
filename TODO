@@ -1,5 +1,3 @@
-Add reporting (to stderr)
-Add counters (to stderr)
 Add multi-step jobs (map/reduce1/reduce2/...)
 Fix names: s/MRProtocol/StreamProtocol; s/M(ap)?R(educe)?//
 Do we actually process the last line for both map and reduce?
