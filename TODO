@@ -1,6 +1,5 @@
 Add multi-step jobs (map/reduce1/reduce2/...)
 Fix names: s/MRProtocol/StreamProtocol; s/M(ap)?R(educe)?//
-Do we actually process the last line for both map and reduce?
 Add tab-protocol -- prints/reads fields of a struct in order sep w/ tabs
 Expose doMap/doReduce so callers can know what stage they need to prepare for?
 Add ReduceFinal() ?
