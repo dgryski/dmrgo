@@ -143,4 +143,10 @@ func reducer(mrjob MapReduceJob, r io.Reader, w io.Writer) {
 			values = append(values, mkv.Value)
 		}
 	}
+
+        // final reducer call with pending 'values'
+        rkvs := mrjob.Reduce(currentKey, values)
+        for _, kv := range rkvs {
+                fmt.Fprintf(w, "%s\t%s\n", kv.Key, kv.Value)
+        }
 }
