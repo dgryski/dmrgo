@@ -10,7 +10,7 @@ PWD=$(shell pwd)
 
 wordcount_test:	wordcount data.in
 		cat data.in | ./wordcount --mapper |sort |./wordcount --reducer >data.out
-		@[ "6aef73971d21f5c27cffb9c36b0517cc  data.out" = "`md5sum data.out`" ] || echo "Fail"
+		@[ "945bdd73efc277a8830305c604f3e54e  data.out" = "`md5sum data.out`" ] || echo "Fail"
 
 wordcount_test_hadoop:	wordcount data.in
 	${HADOOP_HOME}/bin/hadoop fs -ls data.in && ${HADOOP_HOME}/bin/hadoop fs -rm data.in
