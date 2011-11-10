@@ -75,7 +75,7 @@ func Main(mrjob MapReduceJob) {
 	}
 
 	if !doMap && !doReduce {
-		fmt.Println("neither map not reduce called")
+		fmt.Println("neither map nor reduce called")
 		os.Exit(1)
 	}
 
