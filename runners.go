@@ -19,7 +19,7 @@ type KeyValue struct {
 	Value string
 }
 
-func readLineValue(br *bufio.Reader) (*KeyValue, os.Error) {
+func readLineValue(br *bufio.Reader) (*KeyValue, error) {
 	s, err := br.ReadString('\n')
 	s = strings.TrimRight(s, "\n")
 	if err != nil {
@@ -28,7 +28,7 @@ func readLineValue(br *bufio.Reader) (*KeyValue, os.Error) {
 	return &KeyValue{"", s}, err
 }
 
-func readLineKeyValue(br *bufio.Reader) (*KeyValue, os.Error) {
+func readLineKeyValue(br *bufio.Reader) (*KeyValue, error) {
 
 	k, err := br.ReadString('\t')
 	if err != nil {
