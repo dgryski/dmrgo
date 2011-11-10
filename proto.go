@@ -5,7 +5,7 @@
 package dmrgo
 
 import (
-	"json"
+	"encoding/json"
 	"reflect"
 )
 
