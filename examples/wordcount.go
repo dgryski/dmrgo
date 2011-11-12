@@ -55,26 +55,23 @@ func NewWordCount(proto dmrgo.MRProtocol) dmrgo.MapReduceJob {
 	return mr
 }
 
-func (mr *MRWordCount) Map(key string, value string) []*dmrgo.KeyValue {
+func (mr *MRWordCount) Map(key string, value string, emit dmrgo.Emitter) {
 
 	words := strings.Split(strings.TrimSpace(value), " ")
-	kvs := make([]*dmrgo.KeyValue, len(words))
-	for i, word := range words {
+	for _, word := range words {
 		mr.mappedWords++
-		kvs[i] = mr.protocol.MarshalKV(word, 1)
+		emit.Emit(word, "1")
+		//		emit.Emit(*mr.protocol.MarshalKV(word, 1))
 	}
 
-	return kvs
 }
 
-func (mr *MRWordCount) MapFinal() []*dmrgo.KeyValue {
+func (mr *MRWordCount) MapFinal(emit dmrgo.Emitter) {
 	dmrgo.Statusln("finished -- mapped ", mr.mappedWords)
 	dmrgo.IncrCounter("Program", "mapped words", mr.mappedWords)
-
-	return []*dmrgo.KeyValue{}
 }
 
-func (mr *MRWordCount) Reduce(key string, values []string) []*dmrgo.KeyValue {
+func (mr *MRWordCount) Reduce(key string, values []string, emit dmrgo.Emitter) {
 
 	counts := []int{}
 	mr.protocol.UnmarshalKVs(key, values, &key, &counts)
@@ -84,7 +81,7 @@ func (mr *MRWordCount) Reduce(key string, values []string) []*dmrgo.KeyValue {
 		count += c
 	}
 
-	//	emit.Emit(*mr.protocol.MarshalKV(key, count));
+	emit.Emit(key, fmt.Sprintf("%d", count))
 }
 
 var cpuprofile = flag.String("cpuprofile", "", "write cpu profile to file")

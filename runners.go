@@ -6,11 +6,11 @@ package dmrgo
 
 import (
 	"bufio"
+	"flag"
 	"fmt"
 	"io"
 	"os"
 	"strings"
-	"flag"
 )
 
 // KeyValue is the primary type for interacting with Hadoop.
@@ -46,17 +46,34 @@ func readLineKeyValue(br *bufio.Reader) (*KeyValue, error) {
 	return &KeyValue{k, v}, nil
 }
 
+type Emitter interface {
+	Emit(key string, value string)
+}
+
+type mapEmitter struct {
+	w io.Writer
+}
+
+func newEmitter(w io.Writer) Emitter {
+	e := new(mapEmitter)
+	e.w = w
+	return e
+}
+
+func (e *mapEmitter) Emit(key string, value string) {
+	fmt.Fprintf(e.w, "%s\t%s\n", key, value)
+}
+
 // MapReduceJob is the interface expected by the job runner
 type MapReduceJob interface {
+	Map(key string, value string, emit Emitter)
 
-	Map(key string, value string) []*KeyValue
+	// Called at the end of the Map phase 
+	MapFinal(emit Emitter)
 
-        // Called at the end of the Map phase 
-	MapFinal() []*KeyValue
-
-	Reduce(key string, values []string) []*KeyValue
+	Reduce(key string, values []string, emit Emitter)
 }
- 
+
 // are in we in the map or reduce phase?
 var doMap bool
 var doReduce bool
@@ -93,25 +110,20 @@ func mapper(mrjob MapReduceJob, r io.Reader, w io.Writer) {
 
 	br := bufio.NewReader(r)
 
+	emitter := newEmitter(w)
+
 	for {
 		kv, err := readLineValue(br)
 		if err != nil {
 			break
 		}
 
-		kvs := mrjob.Map("", kv.Value)
+		mrjob.Map("", kv.Value, emitter)
 
-		for _, kv := range kvs {
-			fmt.Fprintf(w, "%s\t%s\n", kv.Key, kv.Value)
-		}
 	}
 
 	// handle any finalization from the mapper
-	kvs := mrjob.MapFinal()
-	for _, kv := range kvs {
-		fmt.Fprintf(w, "%s\t%s\n", kv.Key, kv.Value)
-	}
-
+	mrjob.MapFinal(emitter)
 }
 
 // run the mapping phase, calling the reduce routine on key/[]value read from stdin and writing the results to stdout
@@ -119,6 +131,8 @@ func mapper(mrjob MapReduceJob, r io.Reader, w io.Writer) {
 func reducer(mrjob MapReduceJob, r io.Reader, w io.Writer) {
 
 	br := bufio.NewReader(r)
+
+	emitter := newEmitter(w)
 
 	var currentKey string
 	values := []string{}
@@ -133,10 +147,7 @@ func reducer(mrjob MapReduceJob, r io.Reader, w io.Writer) {
 			values = append(values, mkv.Value)
 		} else {
 			if currentKey != "" {
-				rkvs := mrjob.Reduce(currentKey, values)
-				for _, kv := range rkvs {
-					fmt.Fprintf(w, "%s\t%s\n", kv.Key, kv.Value)
-				}
+				mrjob.Reduce(currentKey, values, emitter)
 				values = []string{}
 			}
 			currentKey = mkv.Key
@@ -144,9 +155,6 @@ func reducer(mrjob MapReduceJob, r io.Reader, w io.Writer) {
 		}
 	}
 
-        // final reducer call with pending 'values'
-        rkvs := mrjob.Reduce(currentKey, values)
-        for _, kv := range rkvs {
-                fmt.Fprintf(w, "%s\t%s\n", kv.Key, kv.Value)
-        }
+	// final reducer call with pending 'values'
+	mrjob.Reduce(currentKey, values, emitter)
 }
