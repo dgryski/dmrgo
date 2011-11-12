@@ -4,12 +4,14 @@
 package main
 
 import (
-	"fmt"
-	"strings"
 	"../_obj/dmrgo"
-	"strconv"
 	"flag"
+	"fmt"
+	"log"
 	"os"
+	"runtime/pprof"
+	"strconv"
+	"strings"
 )
 
 // As example, just to show we can write our own custom protocols
@@ -82,14 +84,25 @@ func (mr *MRWordCount) Reduce(key string, values []string) []*dmrgo.KeyValue {
 		count += c
 	}
 
-	return []*dmrgo.KeyValue{mr.protocol.MarshalKV(key, count)}
+	//	emit.Emit(*mr.protocol.MarshalKV(key, count));
 }
+
+var cpuprofile = flag.String("cpuprofile", "", "write cpu profile to file")
 
 func main() {
 
 	var use_proto = flag.String("proto", "json", "use protocol (json/wc)")
 
 	flag.Parse()
+
+	if *cpuprofile != "" {
+		f, err := os.Create(*cpuprofile)
+		if err != nil {
+			log.Fatal(err)
+		}
+		pprof.StartCPUProfile(f)
+		defer pprof.StopCPUProfile()
+	}
 
 	var proto dmrgo.MRProtocol
 
@@ -104,7 +117,5 @@ func main() {
 
 	wordCounter := NewWordCount(proto)
 
-        dmrgo.Main(wordCounter)
-
-	os.Exit(0)
+	dmrgo.Main(wordCounter)
 }
