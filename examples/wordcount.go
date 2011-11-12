@@ -88,7 +88,7 @@ var cpuprofile = flag.String("cpuprofile", "", "write cpu profile to file")
 
 func main() {
 
-	var use_proto = flag.String("proto", "json", "use protocol (json/wc)")
+	var use_proto = flag.String("proto", "wc", "use protocol (json/wc)")
 
 	flag.Parse()
 
