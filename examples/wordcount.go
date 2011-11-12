@@ -57,7 +57,7 @@ func NewWordCount(proto dmrgo.MRProtocol) dmrgo.MapReduceJob {
 
 func (mr *MRWordCount) Map(key string, value string, emit dmrgo.Emitter) {
 
-	words := strings.Split(strings.TrimSpace(value), " ")
+	words := strings.Fields(strings.TrimSpace(strings.ToLower(value)))
 	for _, word := range words {
 		mr.mappedWords++
 		emit.Emit(word, "1")
