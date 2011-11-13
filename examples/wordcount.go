@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"regexp"
 	"runtime/pprof"
 	"strconv"
 	"strings"
@@ -45,19 +46,25 @@ type MRWordCount struct {
 
 	// mapper variables
 	mappedWords int
+	re          *regexp.Regexp
 }
 
 func NewWordCount(proto dmrgo.MRProtocol) dmrgo.MapReduceJob {
 
 	mr := new(MRWordCount)
 	mr.protocol = proto
+	mr.re = regexp.MustCompile("[^a-zA-Z]")
 
 	return mr
 }
 
 func (mr *MRWordCount) Map(key string, value string, emitter dmrgo.Emitter) {
 
-	words := strings.Fields(strings.TrimSpace(strings.ToLower(value)))
+	letters := mr.re.ReplaceAll([]byte(value), []byte(" "))
+	lower := strings.ToLower(string(letters))
+	trimmed := strings.TrimSpace(lower)
+	words := strings.Fields(trimmed)
+
 	for _, word := range words {
 		mr.mappedWords++
 		emitter.Emit(word, "1")
