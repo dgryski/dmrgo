@@ -130,8 +130,6 @@ func mapreduce(mrjob MapReduceJob) {
 
 	mapper(mrjob, os.Stdin, mEmit)
 
-	fmt.Println("files=", mEmit.FileNames)
-
 	for _, fn := range mEmit.FileNames {
 		if fn == "" {
 			continue
