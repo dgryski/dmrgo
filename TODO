@@ -3,9 +3,4 @@ Fix names: s/MRProtocol/StreamProtocol; s/M(ap)?R(educe)?//
 Add tab-protocol -- prints/reads fields of a struct in order sep w/ tabs
 Expose doMap/doReduce so callers can know what stage they need to prepare for?
 Add ReduceFinal() ?
-
-Add file-based M/R implementation:
-   list of files to map
-   paritioner (crc32 & 0xf)
-   /usr/bin/sort
-   reducer
+Add more status logging for full map/reduce code (behind -v ?)

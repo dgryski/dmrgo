@@ -8,6 +8,7 @@ import (
 	"bufio"
 	"flag"
 	"fmt"
+	"hash/adler32"
 	"io"
 	"os"
 	"strings"
@@ -50,41 +51,112 @@ type Emitter interface {
 	Emit(key string, value string)
 }
 
-type mapEmitter struct {
+type printEmitter struct {
 	w io.Writer
 }
 
-func newEmitter(w io.Writer) Emitter {
-	e := new(mapEmitter)
+func newPrintEmitter(w io.Writer) *printEmitter {
+	e := new(printEmitter)
 	e.w = w
 	return e
 }
 
-func (e *mapEmitter) Emit(key string, value string) {
+func (e *printEmitter) Emit(key string, value string) {
 	fmt.Fprintf(e.w, "%s\t%s\n", key, value)
+}
+
+type partitionEmitter struct {
+	Partitions       uint32
+	FileNames        []string
+	Writers          []io.Writer
+	FileNameTemplate string
+}
+
+func newPartitionEmitter(partitions uint, template string) *partitionEmitter {
+	pe := new(partitionEmitter)
+	pe.Partitions = uint32(partitions)
+	pe.FileNameTemplate = template
+	pe.FileNames = make([]string, partitions)
+	pe.Writers = make([]io.Writer, partitions)
+	return pe
+}
+
+func (e *partitionEmitter) Emit(key string, value string) {
+
+	partition := adler32.Checksum([]byte(key)) % uint32(e.Partitions)
+
+	if e.Writers[partition] == nil {
+		e.FileNames[partition] = fmt.Sprintf("%s.%04d", e.FileNameTemplate, partition)
+		fd, _ := os.Create(e.FileNames[partition])
+		e.Writers[partition] = bufio.NewWriter(fd)
+	}
+
+	fmt.Fprintf(e.Writers[partition], "%s\t%s\n", key, value)
 }
 
 // MapReduceJob is the interface expected by the job runner
 type MapReduceJob interface {
-	Map(key string, value string, emit Emitter)
+	Map(key string, value string, emitter Emitter)
 
 	// Called at the end of the Map phase 
-	MapFinal(emit Emitter)
+	MapFinal(emitter Emitter)
 
-	Reduce(key string, values []string, emit Emitter)
+	Reduce(key string, values []string, emitter Emitter)
 }
 
 // are in we in the map or reduce phase?
 var doMap bool
 var doReduce bool
+var emitPartitions int
+var doMapReduce bool
 
 func init() {
 	flag.BoolVar(&doMap, "mapper", false, "run mapper code on stdin")
 	flag.BoolVar(&doReduce, "reducer", false, "run reducer on stdin")
+	flag.IntVar(&emitPartitions, "partitions", 0, "parition data into sets")
+	flag.BoolVar(&doMapReduce, "mapreduce", false, "run full map/reduce")
+}
+
+func mapreduce(mrjob MapReduceJob) {
+
+	mEmit := newPartitionEmitter(uint(emitPartitions), fmt.Sprintf("tmp-map-out-p%d", os.Getpid()))
+	rEmit := newPrintEmitter(os.Stdout)
+	attr := new(os.ProcAttr)
+	attr.Files = []*os.File{nil, nil, nil}
+
+	mapper(mrjob, os.Stdin, mEmit)
+
+	fmt.Println("files=", mEmit.FileNames)
+
+	for _, fn := range mEmit.FileNames {
+		if fn == "" {
+			continue
+		}
+
+		// sort
+		p, err := os.StartProcess("/usr/bin/sort", []string{"sort", fn, "-o", "tmp-red-in.0000"}, attr)
+		if err != nil {
+			fmt.Fprintln(os.Stderr, "err running sort: ", err)
+		}
+		p.Wait(0)
+
+		// reduce
+		f, _ := os.Open("tmp-red-in.0000")
+		reducer(mrjob, f, rEmit)
+		os.Remove(fn)
+	}
+	os.Remove("tmp-red-in.0000")
 }
 
 // Main runs the map reduce job passed in
 func Main(mrjob MapReduceJob) {
+
+	stdout := bufio.NewWriter(os.Stdout)
+
+	if doMapReduce {
+		mapreduce(mrjob)
+		return
+	}
 
 	if doMap && doReduce {
 		fmt.Println("can either map or reduce, not both")
@@ -96,21 +168,21 @@ func Main(mrjob MapReduceJob) {
 		os.Exit(1)
 	}
 
+	var emitter = newPrintEmitter(stdout)
+
 	if doMap {
-		mapper(mrjob, os.Stdin, os.Stdout)
+		mapper(mrjob, os.Stdin, emitter)
 	}
 
 	if doReduce {
-		reducer(mrjob, os.Stdin, os.Stdout)
+		reducer(mrjob, os.Stdin, emitter)
 	}
 }
 
 // run the mapping phase, calling the map routine on key/value pairs on stdin and writing the results to stdout
-func mapper(mrjob MapReduceJob, r io.Reader, w io.Writer) {
+func mapper(mrjob MapReduceJob, r io.Reader, emitter Emitter) {
 
 	br := bufio.NewReader(r)
-
-	emitter := newEmitter(w)
 
 	for {
 		kv, err := readLineValue(br)
@@ -128,11 +200,9 @@ func mapper(mrjob MapReduceJob, r io.Reader, w io.Writer) {
 
 // run the mapping phase, calling the reduce routine on key/[]value read from stdin and writing the results to stdout
 // We aggregate the values that have been mapped with the same key, then call the users Reduce function
-func reducer(mrjob MapReduceJob, r io.Reader, w io.Writer) {
+func reducer(mrjob MapReduceJob, r io.Reader, emitter Emitter) {
 
 	br := bufio.NewReader(r)
-
-	emitter := newEmitter(w)
 
 	var currentKey string
 	values := []string{}
