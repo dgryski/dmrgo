@@ -1,4 +1,7 @@
-dmrgo is a Go library to make writing programs using Hadoop's Streaming protocol easier.
+dmrgo is a Go library for writing map/reduce jobs.
+
+It can be used with Hadoop's streaming protocol, but also includes a standalone
+map/reduce implementation (including partitioner) for 'small' jobs (~5G-10G).
 
 It is partially based on ideas from Yelp's MrJob package for Python, but since
 the Go is statically typed I've tried to make the API match more closely with
