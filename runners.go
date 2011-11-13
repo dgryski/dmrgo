@@ -66,32 +66,36 @@ func (e *printEmitter) Emit(key string, value string) {
 }
 
 type partitionEmitter struct {
-	Partitions       uint32
+	partitions       uint32
 	FileNames        []string
-	Writers          []io.Writer
-	FileNameTemplate string
+	writers          []io.Writer
+	fileNameTemplate string
 }
 
 func newPartitionEmitter(partitions uint, template string) *partitionEmitter {
 	pe := new(partitionEmitter)
-	pe.Partitions = uint32(partitions)
-	pe.FileNameTemplate = template
+	pe.partitions = uint32(partitions)
+	pe.fileNameTemplate = template
 	pe.FileNames = make([]string, partitions)
-	pe.Writers = make([]io.Writer, partitions)
+	pe.writers = make([]io.Writer, partitions)
 	return pe
 }
 
 func (e *partitionEmitter) Emit(key string, value string) {
 
-	partition := adler32.Checksum([]byte(key)) % uint32(e.Partitions)
+	partition := uint32(0)
 
-	if e.Writers[partition] == nil {
-		e.FileNames[partition] = fmt.Sprintf("%s.%04d", e.FileNameTemplate, partition)
+        if e.partitions > 1 {
+           partition = adler32.Checksum([]byte(key)) % uint32(e.partitions)
+         }
+
+	if e.writers[partition] == nil {
+		e.FileNames[partition] = fmt.Sprintf("%s.%04d", e.fileNameTemplate, partition)
 		fd, _ := os.Create(e.FileNames[partition])
-		e.Writers[partition] = bufio.NewWriter(fd)
+		e.writers[partition] = bufio.NewWriter(fd)
 	}
 
-	fmt.Fprintf(e.Writers[partition], "%s\t%s\n", key, value)
+	fmt.Fprintf(e.writers[partition], "%s\t%s\n", key, value)
 }
 
 // MapReduceJob is the interface expected by the job runner
@@ -113,7 +117,7 @@ var doMapReduce bool
 func init() {
 	flag.BoolVar(&doMap, "mapper", false, "run mapper code on stdin")
 	flag.BoolVar(&doReduce, "reducer", false, "run reducer on stdin")
-	flag.IntVar(&emitPartitions, "partitions", 0, "parition data into sets")
+	flag.IntVar(&emitPartitions, "partitions", 1, "parition data into sets")
 	flag.BoolVar(&doMapReduce, "mapreduce", false, "run full map/reduce")
 }
 
