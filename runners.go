@@ -52,10 +52,10 @@ type Emitter interface {
 }
 
 type printEmitter struct {
-	w io.Writer
+	w *bufio.Writer
 }
 
-func newPrintEmitter(w io.Writer) *printEmitter {
+func newPrintEmitter(w *bufio.Writer) *printEmitter {
 	e := new(printEmitter)
 	e.w = w
 	return e
@@ -65,10 +65,15 @@ func (e *printEmitter) Emit(key string, value string) {
 	fmt.Fprintf(e.w, "%s\t%s\n", key, value)
 }
 
+func (e *printEmitter) Flush() {
+	e.w.Flush()
+}
+
 type partitionEmitter struct {
 	partitions       uint32
 	FileNames        []string
-	writers          []io.Writer
+	writers          []*bufio.Writer
+	fds              []*os.File
 	fileNameTemplate string
 }
 
@@ -77,7 +82,8 @@ func newPartitionEmitter(partitions uint, template string) *partitionEmitter {
 	pe.partitions = uint32(partitions)
 	pe.fileNameTemplate = template
 	pe.FileNames = make([]string, partitions)
-	pe.writers = make([]io.Writer, partitions)
+	pe.writers = make([]*bufio.Writer, partitions)
+	pe.fds = make([]*os.File, partitions)
 	return pe
 }
 
@@ -85,17 +91,30 @@ func (e *partitionEmitter) Emit(key string, value string) {
 
 	partition := uint32(0)
 
-        if e.partitions > 1 {
-           partition = adler32.Checksum([]byte(key)) % uint32(e.partitions)
-         }
+	if e.partitions > 1 {
+		partition = adler32.Checksum([]byte(key)) % uint32(e.partitions)
+	}
 
 	if e.writers[partition] == nil {
 		e.FileNames[partition] = fmt.Sprintf("%s.%04d", e.fileNameTemplate, partition)
 		fd, _ := os.Create(e.FileNames[partition])
+		e.fds[partition] = fd
 		e.writers[partition] = bufio.NewWriter(fd)
 	}
 
 	fmt.Fprintf(e.writers[partition], "%s\t%s\n", key, value)
+}
+
+func (e *partitionEmitter) Flush() {
+	for _, w := range e.writers {
+		w.Flush()
+	}
+}
+
+func (e *partitionEmitter) Close() {
+	for _, w := range e.fds {
+		w.Close()
+	}
 }
 
 // MapReduceJob is the interface expected by the job runner
@@ -124,11 +143,14 @@ func init() {
 func mapreduce(mrjob MapReduceJob) {
 
 	mEmit := newPartitionEmitter(uint(emitPartitions), fmt.Sprintf("tmp-map-out-p%d", os.Getpid()))
-	rEmit := newPrintEmitter(os.Stdout)
+	rEmit := newPrintEmitter(bufio.NewWriter(os.Stdout))
 	attr := new(os.ProcAttr)
 	attr.Files = []*os.File{nil, nil, nil}
 
 	mapper(mrjob, os.Stdin, mEmit)
+
+	mEmit.Flush()
+	mEmit.Close()
 
 	for _, fn := range mEmit.FileNames {
 		if fn == "" {
@@ -148,12 +170,11 @@ func mapreduce(mrjob MapReduceJob) {
 		os.Remove(fn)
 	}
 	os.Remove("tmp-red-in.0000")
+	rEmit.Flush()
 }
 
 // Main runs the map reduce job passed in
 func Main(mrjob MapReduceJob) {
-
-	stdout := bufio.NewWriter(os.Stdout)
 
 	if doMapReduce {
 		mapreduce(mrjob)
@@ -170,7 +191,9 @@ func Main(mrjob MapReduceJob) {
 		os.Exit(1)
 	}
 
-	var emitter = newPrintEmitter(stdout)
+	stdout := bufio.NewWriter(os.Stdout)
+
+	emitter := newPrintEmitter(stdout)
 
 	if doMap {
 		mapper(mrjob, os.Stdin, emitter)
@@ -179,6 +202,8 @@ func Main(mrjob MapReduceJob) {
 	if doReduce {
 		reducer(mrjob, os.Stdin, emitter)
 	}
+
+	emitter.Flush()
 }
 
 // run the mapping phase, calling the map routine on key/value pairs on stdin and writing the results to stdout
