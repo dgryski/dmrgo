@@ -81,6 +81,11 @@ type partitionEmitter struct {
 	fileNameTemplate string
 }
 
+// data sink -- useful for benchmarking
+type nullEmitter struct { }
+func (*nullEmitter) Emit(key string, value string) { /* nothing */ }
+func (*nullEmitter) Flush() { /* nothing */ }
+
 func newPartitionEmitter(partitions uint, template string) *partitionEmitter {
 	pe := new(partitionEmitter)
 	pe.partitions = uint32(partitions)
