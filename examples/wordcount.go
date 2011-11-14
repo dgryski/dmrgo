@@ -39,9 +39,9 @@ func (p *WordCountProto) MarshalKV(key interface{}, value interface{}) *dmrgo.Ke
 	ks := key.(string)
 	vi := value.(int)
 
-        if (vi == 1) {
-	    return &dmrgo.KeyValue{ks, "1"}
-        }
+	if vi == 1 {
+		return &dmrgo.KeyValue{ks, "1"}
+	}
 
 	return &dmrgo.KeyValue{ks, strconv.Itoa(vi)}
 }
@@ -72,7 +72,7 @@ func (mr *MRWordCount) Map(key string, value string, emitter dmrgo.Emitter) {
 
 	for _, word := range words {
 		mr.mappedWords++
-                kv := mr.protocol.MarshalKV(word, 1)
+		kv := mr.protocol.MarshalKV(word, 1)
 		emitter.Emit(kv.Key, kv.Value)
 	}
 
