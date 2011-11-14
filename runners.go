@@ -62,7 +62,10 @@ func newPrintEmitter(w *bufio.Writer) *printEmitter {
 }
 
 func (e *printEmitter) Emit(key string, value string) {
-	fmt.Fprintf(e.w, "%s\t%s\n", key, value)
+        e.w.WriteString(key)
+        e.w.WriteString("\t")
+        e.w.WriteString(value)
+        e.w.WriteString("\n")
 }
 
 func (e *printEmitter) Flush() {
