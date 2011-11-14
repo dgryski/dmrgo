@@ -64,9 +64,9 @@ func newPrintEmitter(w *bufio.Writer) *printEmitter {
 
 func (e *printEmitter) Emit(key string, value string) {
 	e.w.WriteString(key)
-	e.w.WriteString("\t")
+	e.w.WriteByte('\t')
 	e.w.WriteString(value)
-	e.w.WriteString("\n")
+	e.w.WriteByte('\n')
 }
 
 func (e *printEmitter) Flush() {
