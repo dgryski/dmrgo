@@ -49,6 +49,7 @@ func readLineKeyValue(br *bufio.Reader) (*KeyValue, error) {
 
 type Emitter interface {
 	Emit(key string, value string)
+	Flush()
 }
 
 type printEmitter struct {
@@ -62,10 +63,10 @@ func newPrintEmitter(w *bufio.Writer) *printEmitter {
 }
 
 func (e *printEmitter) Emit(key string, value string) {
-        e.w.WriteString(key)
-        e.w.WriteString("\t")
-        e.w.WriteString(value)
-        e.w.WriteString("\n")
+	e.w.WriteString(key)
+	e.w.WriteString("\t")
+	e.w.WriteString(value)
+	e.w.WriteString("\n")
 }
 
 func (e *printEmitter) Flush() {
@@ -75,8 +76,8 @@ func (e *printEmitter) Flush() {
 type partitionEmitter struct {
 	partitions       uint32
 	FileNames        []string
-	writers          []*bufio.Writer
 	fds              []*os.File
+	emitters         []Emitter
 	fileNameTemplate string
 }
 
@@ -85,8 +86,8 @@ func newPartitionEmitter(partitions uint, template string) *partitionEmitter {
 	pe.partitions = uint32(partitions)
 	pe.fileNameTemplate = template
 	pe.FileNames = make([]string, partitions)
-	pe.writers = make([]*bufio.Writer, partitions)
 	pe.fds = make([]*os.File, partitions)
+	pe.emitters = make([]Emitter, partitions)
 	return pe
 }
 
@@ -98,18 +99,19 @@ func (e *partitionEmitter) Emit(key string, value string) {
 		partition = adler32.Checksum([]byte(key)) % uint32(e.partitions)
 	}
 
-	if e.writers[partition] == nil {
+	if e.emitters[partition] == nil {
 		e.FileNames[partition] = fmt.Sprintf("%s.%04d", e.fileNameTemplate, partition)
 		fd, _ := os.Create(e.FileNames[partition])
 		e.fds[partition] = fd
-		e.writers[partition] = bufio.NewWriter(fd)
+		w := bufio.NewWriter(fd)
+		e.emitters[partition] = newPrintEmitter(w)
 	}
 
-	fmt.Fprintf(e.writers[partition], "%s\t%s\n", key, value)
+	e.emitters[partition].Emit(key, value)
 }
 
 func (e *partitionEmitter) Flush() {
-	for _, w := range e.writers {
+	for _, w := range e.emitters {
 		w.Flush()
 	}
 }
