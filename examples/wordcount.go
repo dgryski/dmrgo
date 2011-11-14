@@ -93,7 +93,8 @@ func (mr *MRWordCount) Reduce(key string, values []string, emitter dmrgo.Emitter
 		count += c
 	}
 
-	emitter.Emit(key, fmt.Sprintf("%d", count))
+	kv := mr.protocol.MarshalKV(key, count)
+	emitter.Emit(kv.Key, kv.Value)
 }
 
 var cpuprofile = flag.String("cpuprofile", "", "write cpu profile to file")
