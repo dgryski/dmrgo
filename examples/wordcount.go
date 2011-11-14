@@ -38,7 +38,12 @@ func (p *WordCountProto) UnmarshalKVs(key string, values []string, k interface{}
 func (p *WordCountProto) MarshalKV(key interface{}, value interface{}) *dmrgo.KeyValue {
 	ks := key.(string)
 	vi := value.(int)
-	return &dmrgo.KeyValue{ks, fmt.Sprintf("%d", vi)}
+
+        if (vi == 1) {
+	    return &dmrgo.KeyValue{ks, "1"}
+        }
+
+	return &dmrgo.KeyValue{ks, strconv.Itoa(vi)}
 }
 
 type MRWordCount struct {
@@ -67,8 +72,8 @@ func (mr *MRWordCount) Map(key string, value string, emitter dmrgo.Emitter) {
 
 	for _, word := range words {
 		mr.mappedWords++
-		emitter.Emit(word, "1")
-		//		emit.Emit(*mr.protocol.MarshalKV(word, 1))
+                kv := mr.protocol.MarshalKV(word, 1)
+		emitter.Emit(kv.Key, kv.Value)
 	}
 
 }
