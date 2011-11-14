@@ -6,3 +6,4 @@ Add ReduceFinal() ?
 Add more status logging for full map/reduce code (behind -v ?)
 Allow --mapper to not read from stdin, but instead from a list of files.
 Allow concurrent mapping/reducing
+Fix json protocol -- it's too slow to be used in production. (Go bug?)
