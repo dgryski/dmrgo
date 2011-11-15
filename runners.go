@@ -1,4 +1,4 @@
-// Protocols for un/marshaling stream values
+// Logic for running our map/reduce jobs
 // Copyright (c) 2011 Damian Gryski <damian@gryski.com>
 // License: GPLv3 or, at your option, any later version
 
