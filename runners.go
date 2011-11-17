@@ -12,6 +12,8 @@ import (
 	"io"
 	"os"
 	"strings"
+        "path/filepath"
+        "runtime"
 )
 
 // KeyValue is the primary type for interacting with Hadoop.
@@ -142,45 +144,115 @@ var doMap bool
 var doReduce bool
 var emitPartitions int
 var doMapReduce bool
+var mappers int
 
 func init() {
 	flag.BoolVar(&doMap, "mapper", false, "run mapper code on stdin")
 	flag.BoolVar(&doReduce, "reducer", false, "run reducer on stdin")
 	flag.IntVar(&emitPartitions, "partitions", 1, "parition data into sets")
 	flag.BoolVar(&doMapReduce, "mapreduce", false, "run full map/reduce")
+	flag.IntVar(&mappers, "mappers", 4, "number of map processes")
 }
 
 func mapreduce(mrjob MapReduceJob) {
 
-	mEmit := newPartitionEmitter(uint(emitPartitions), fmt.Sprintf("tmp-map-out-p%d", os.Getpid()))
-	rEmit := newPrintEmitter(bufio.NewWriter(os.Stdout))
 	attr := new(os.ProcAttr)
 	attr.Files = []*os.File{nil, nil, nil}
 
-	mapper(mrjob, os.Stdin, mEmit)
+        pid := os.Getpid()
 
-	mEmit.Flush()
-	mEmit.Close()
+        runtime.GOMAXPROCS(mappers+1)
+        sem := make(chan int, mappers) // handle 'mappers' concurrent processors
+        done := make(chan int)         // signal channel to make sure everybody has completed
 
-	for _, fn := range mEmit.FileNames {
-		if fn == "" {
-			continue
-		}
+        mapperInputs := flag.Args()
 
-		// sort
-		p, err := os.StartProcess("/usr/bin/sort", []string{"sort", fn, "-o", "tmp-red-in.0000"}, attr)
-		if err != nil {
-			fmt.Fprintln(os.Stderr, "err running sort: ", err)
-		}
-		p.Wait(0)
+	// no input files -- read from stdin
+        if len(mapperInputs) == 0 {
+            mEmit := newPartitionEmitter(uint(emitPartitions), fmt.Sprintf("tmp-map-out-p%d-f0", pid))
+            mapper(mrjob, os.Stdin, mEmit)
+            mEmit.Flush()
+            mEmit.Close()
+            mapper_final(mrjob, mEmit)
+            mapperInputs = []string{"(stdin)"}
+        } else {
+            // we have multiple input files -- run up to 'mappers' of them in parallel
 
-		// reduce
-		f, _ := os.Open("tmp-red-in.0000")
-		reducer(mrjob, f, rEmit)
-		os.Remove(fn)
+            for i, fn := range mapperInputs {
+                go func(i int, fn string) {
+                    sem <- 1;
+                    defer func() { <- sem; done <- 1 }()
+
+                    f, err := os.Open(fn)
+                    if err != nil {
+                            fmt.Fprintln(os.Stderr, "err opening ", f, ": ", err)
+                            return
+                    }
+
+                    mEmit := newPartitionEmitter(uint(emitPartitions), fmt.Sprintf("tmp-map-out-p%d-f%d", pid, i))
+                    mapper(mrjob, f, mEmit)
+                    mEmit.Flush()
+                    mEmit.Close()
+                    f.Close()
+                }(i, fn)
+            }
+
+            for i := 0; i < len(mapperInputs); i++ {
+               <- done
+            }
+
+            mEmit := newPartitionEmitter(uint(emitPartitions), fmt.Sprintf("tmp-map-out-p%d-f%d", pid, len(mapperInputs)))
+            mapper_final(mrjob, mEmit)
+
+        }
+
+
+	for i := 0; i < emitPartitions; i++ { 
+
+                go func(i int) {
+
+                    sem <- 1
+                    defer func() { <- sem; done <- 1 }()
+
+                    fns, _ := filepath.Glob(fmt.Sprintf("tmp-map-out-p%d-f*.%04d", pid, i))
+
+                    redin := fmt.Sprintf("tmp-red-in-p%d.%04d", pid, i)
+
+                    cmdline := []string{"sort", "-o", redin}
+                    cmdline = append(cmdline, fns...)
+
+                    // sort
+                    p, err := os.StartProcess("/usr/bin/sort", cmdline, attr)
+                    if err != nil {
+                            fmt.Fprintln(os.Stderr, "err running sort: ", err)
+                    }
+                    p.Wait(0)
+
+                    // reduce
+                    f, _ := os.Open(redin)
+                    rout, _ := os.Create(fmt.Sprintf("red-out-p%d.%04d", pid, i))
+	            rEmit := newPrintEmitter(bufio.NewWriter(rout))
+                    reducer(mrjob, f, rEmit)
+                    for _, fn := range fns {
+                        os.Remove(fn)
+                   }
+                    os.Remove(redin)
+	            rEmit.Flush()
+                    rout.Close()
+                }(i)
 	}
-	os.Remove("tmp-red-in.0000")
-	rEmit.Flush()
+
+        // wait for reducers to finish
+        for i := 0; i < emitPartitions; i++ {
+           <- done
+           // stdout? then cat just-created file then unlink it
+        }
+
+        if emitPartitions == 1 {
+            fmt.Printf("output is in: red-out-p%d.0000\n", pid)
+        } else {
+            fmt.Printf("output is in: red-out-p%d.0000 - red-out-p%d.%04d\n", pid, pid, emitPartitions-1)
+        }
 }
 
 // Main runs the map reduce job passed in
@@ -207,6 +279,8 @@ func Main(mrjob MapReduceJob) {
 
 	if doMap {
 		mapper(mrjob, os.Stdin, emitter)
+                // handle any finalization from the mapper
+                mapper_final(mrjob, emitter)
 	}
 
 	if doReduce {
@@ -228,10 +302,11 @@ func mapper(mrjob MapReduceJob, r io.Reader, emitter Emitter) {
 		}
 
 		mrjob.Map("", kv.Value, emitter)
-
 	}
+}
 
-	// handle any finalization from the mapper
+// run the cleanup phase for the mapper
+func mapper_final(mrjob MapReduceJob, emitter Emitter) {
 	mrjob.MapFinal(emitter)
 }
 
