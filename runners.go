@@ -143,18 +143,18 @@ type MapReduceJob interface {
 }
 
 // are in we in the map or reduce phase?
-var doMap bool
-var doReduce bool
-var emitPartitions int
-var doMapReduce bool
-var mappers int
+var optDoMap bool
+var optDoReduce bool
+var optNumPartitions int
+var optDoMapReduce bool
+var optNumMappers int
 
 func init() {
-	flag.BoolVar(&doMap, "mapper", false, "run mapper code on stdin")
-	flag.BoolVar(&doReduce, "reducer", false, "run reducer on stdin")
-	flag.IntVar(&emitPartitions, "partitions", 1, "parition data into sets")
-	flag.BoolVar(&doMapReduce, "mapreduce", false, "run full map/reduce")
-	flag.IntVar(&mappers, "mappers", 4, "number of map processes")
+	flag.BoolVar(&optDoMap, "mapper", false, "run mapper code on stdin")
+	flag.BoolVar(&optDoReduce, "reducer", false, "run reducer on stdin")
+	flag.IntVar(&optNumPartitions, "partitions", 1, "parition data into sets")
+	flag.BoolVar(&optDoMapReduce, "mapreduce", false, "run full map/reduce")
+	flag.IntVar(&optNumMappers, "mappers", 4, "number of map processes")
 }
 
 func mapreduce(mrjob MapReduceJob) {
@@ -164,15 +164,15 @@ func mapreduce(mrjob MapReduceJob) {
 
 	pid := os.Getpid()
 
-	runtime.GOMAXPROCS(mappers + 1)
-	sem := make(chan int, mappers) // handle 'mappers' concurrent processors
-	done := make(chan int)         // signal channel to make sure everybody has completed
+	runtime.GOMAXPROCS(optNumMappers + 1)
+	sem := make(chan int, optNumMappers) // handle 'mappers' concurrent processors
+	done := make(chan int)               // signal channel to make sure everybody has completed
 
 	mapperInputs := flag.Args()
 
 	// no input files -- read from stdin
 	if len(mapperInputs) == 0 {
-		mEmit := newPartitionEmitter(uint(emitPartitions), fmt.Sprintf("tmp-map-out-p%d-f0", pid))
+		mEmit := newPartitionEmitter(uint(optNumPartitions), fmt.Sprintf("tmp-map-out-p%d-f0", pid))
 		mapper(mrjob, os.Stdin, mEmit)
 		mapper_final(mrjob, mEmit)
 		mEmit.Flush()
@@ -192,7 +192,7 @@ func mapreduce(mrjob MapReduceJob) {
 					return
 				}
 
-				mEmit := newPartitionEmitter(uint(emitPartitions), fmt.Sprintf("tmp-map-out-p%d-f%d", pid, i))
+				mEmit := newPartitionEmitter(uint(optNumPartitions), fmt.Sprintf("tmp-map-out-p%d-f%d", pid, i))
 				mapper(mrjob, f, mEmit)
 				mEmit.Flush()
 				mEmit.Close()
@@ -200,17 +200,19 @@ func mapreduce(mrjob MapReduceJob) {
 			}(i, fn)
 		}
 
+		// wait for mappers to finish
 		for i := 0; i < len(mapperInputs); i++ {
 			<-done
 		}
 
-		mEmit := newPartitionEmitter(uint(emitPartitions), fmt.Sprintf("tmp-map-out-p%d-f%d", pid, len(mapperInputs)))
+		// then launch mapper_final
+		mEmit := newPartitionEmitter(uint(optNumPartitions), fmt.Sprintf("tmp-map-out-p%d-f%d", pid, len(mapperInputs)))
 		mapper_final(mrjob, mEmit)
 		mEmit.Flush()
 		mEmit.Close()
 	}
 
-	for i := 0; i < emitPartitions; i++ {
+	for i := 0; i < optNumPartitions; i++ {
 
 		go func(i int) {
 
@@ -246,32 +248,32 @@ func mapreduce(mrjob MapReduceJob) {
 	}
 
 	// wait for reducers to finish
-	for i := 0; i < emitPartitions; i++ {
+	for i := 0; i < optNumPartitions; i++ {
 		<-done
 		// stdout? then cat just-created file then unlink it
 	}
 
-	if emitPartitions == 1 {
+	if optNumPartitions == 1 {
 		fmt.Printf("output is in: red-out-p%d.0000\n", pid)
 	} else {
-		fmt.Printf("output is in: red-out-p%d.0000 - red-out-p%d.%04d\n", pid, pid, emitPartitions-1)
+		fmt.Printf("output is in: red-out-p%d.0000 - red-out-p%d.%04d\n", pid, pid, optNumPartitions-1)
 	}
 }
 
 // Main runs the map reduce job passed in
 func Main(mrjob MapReduceJob) {
 
-	if doMapReduce {
+	if optDoMapReduce {
 		mapreduce(mrjob)
 		return
 	}
 
-	if doMap && doReduce {
-		fmt.Println("can either map or reduce, not both")
+	if optDoMap && optDoReduce {
+		fmt.Println("can either map or reduce, not both. (Did  you mean --mapreduce ?)")
 		os.Exit(1)
 	}
 
-	if !doMap && !doReduce {
+	if !optDoMap && !optDoReduce {
 		fmt.Println("neither map nor reduce called")
 		os.Exit(1)
 	}
@@ -280,13 +282,13 @@ func Main(mrjob MapReduceJob) {
 
 	emitter := newPrintEmitter(stdout)
 
-	if doMap {
+	if optDoMap {
 		mapper(mrjob, os.Stdin, emitter)
 		// handle any finalization from the mapper
 		mapper_final(mrjob, emitter)
 	}
 
-	if doReduce {
+	if optDoReduce {
 		reducer(mrjob, os.Stdin, emitter)
 	}
 
