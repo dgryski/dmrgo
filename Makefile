@@ -5,5 +5,6 @@ GOFILES=\
 	reporter.go\
 	runners.go\
 	proto.go\
+	emitter.go
 
 include $(GOROOT)/src/Make.pkg

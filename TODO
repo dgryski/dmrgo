@@ -4,9 +4,5 @@ Add tab-protocol -- prints/reads fields of a struct in order sep w/ tabs
 Expose doMap/doReduce so callers can know what stage they need to prepare for?
 Add ReduceFinal() ?
 Add more status logging for full map/reduce code (behind -v ?)
-Allow --mapper to not read from stdin, but instead from a list of files.
-Allow concurrent mapping/reducing
 Fix json protocol -- it's too slow to be used in production. (Go bug?)
-Fix params: --streaming --mapper or --streaming --reducer, otherwise full partitioned mapreduce
-Pull emitters into own source file
 Client mappers and reducers now need to be thread-safe.  How to make this easy?
