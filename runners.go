@@ -174,9 +174,9 @@ func mapreduce(mrjob MapReduceJob) {
 	if len(mapperInputs) == 0 {
 		mEmit := newPartitionEmitter(uint(emitPartitions), fmt.Sprintf("tmp-map-out-p%d-f0", pid))
 		mapper(mrjob, os.Stdin, mEmit)
+		mapper_final(mrjob, mEmit)
 		mEmit.Flush()
 		mEmit.Close()
-		mapper_final(mrjob, mEmit)
 		mapperInputs = []string{"(stdin)"}
 	} else {
 		// we have multiple input files -- run up to 'mappers' of them in parallel
