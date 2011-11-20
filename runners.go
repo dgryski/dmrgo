@@ -206,7 +206,8 @@ func mapreduce(mrjob MapReduceJob) {
 
 		mEmit := newPartitionEmitter(uint(emitPartitions), fmt.Sprintf("tmp-map-out-p%d-f%d", pid, len(mapperInputs)))
 		mapper_final(mrjob, mEmit)
-
+		mEmit.Flush()
+		mEmit.Close()
 	}
 
 	for i := 0; i < emitPartitions; i++ {
