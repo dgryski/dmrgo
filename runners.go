@@ -62,8 +62,14 @@ type MapReduceJob interface {
 // are in we in the map or reduce phase?
 var optDoMap bool
 var optDoReduce bool
-var optNumPartitions int
+
+// or the full map/reduce code
 var optDoMapReduce bool
+
+// how many output partitions should we use
+var optNumPartitions int
+
+// how many concurrent mappers/reducer should we try to use
 var optNumMappers int
 
 func init() {
