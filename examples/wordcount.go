@@ -129,7 +129,7 @@ func main() {
 	} else if *use_proto == "tsv" {
 		proto = new(dmrgo.TSVProtocol)
 	} else {
-		fmt.Println("unknown proto=", use_proto)
+		fmt.Println("unknown proto=", *use_proto)
 		os.Exit(1)
 	}
 
