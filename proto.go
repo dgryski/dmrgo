@@ -106,16 +106,28 @@ func (p *TSVProtocol) UnmarshalKVs(key string, values []string, k interface{}, v
 	for _, s := range values {
 		vs := strings.Split(s, "\t")
 
+		// create our new element
+		e := reflect.New(vsType.Elem())
+
+		// figure out what kind we need to unpack our data into
 		if vType.Kind() == reflect.Struct {
-			e := reflect.New(vsType.Elem())
 			for i := 0; i < vType.NumField(); i++ {
 				_, err := fmt.Sscan(vs[i], e.Elem().Field(i).Addr().Interface())
 				if err != nil {
 					continue // skip
 				}
 			}
-			v = reflect.Append(v, e.Elem())
+		} else if vType.Kind() == reflect.Array {
+			for i := 0; i < vType.Len(); i++ {
+				_, err := fmt.Sscan(vs[i], e.Elem().Index(i).Addr().Interface())
+				if err != nil {
+					continue // skip
+				}
+			}
 		}
+
+		// add it to our list
+		v = reflect.Append(v, e.Elem())
 	}
 
 	vsPtrValue.Elem().Set(v)
