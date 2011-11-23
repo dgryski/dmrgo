@@ -83,12 +83,16 @@ func (e *partitionEmitter) Emit(key string, value string) {
 
 func (e *partitionEmitter) Flush() {
 	for _, w := range e.emitters {
-		w.Flush()
+		if w != nil {
+			w.Flush()
+		}
 	}
 }
 
 func (e *partitionEmitter) Close() {
 	for _, w := range e.fds {
-		w.Close()
+		if w != nil {
+			w.Close()
+		}
 	}
 }
