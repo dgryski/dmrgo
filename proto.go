@@ -126,7 +126,10 @@ func primitiveToString(v reflect.Value) string {
 	switch v.Kind() {
 
 	case reflect.Bool:
-		return fmt.Sprint(v.Bool())
+		if v.Bool() {
+			return "1"
+		}
+		return "0"
 	case reflect.Int:
 		fallthrough
 	case reflect.Int8:
