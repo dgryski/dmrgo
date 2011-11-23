@@ -78,8 +78,8 @@ func (p *TSVProtocol) MarshalKV(key interface{}, value interface{}) *KeyValue {
 			v := primitiveToString(field)
 			vs = append(vs, v)
 		}
-	} else if vType.Kind() == reflect.String {
-		vs = append(vs, vVal.String())
+	} else if isPrimitive(vType.Kind()) {
+		vs = append(vs, primitiveToString(vVal))
 	} else if vType.Kind() == reflect.Array || vType.Kind() == reflect.Slice {
 		for i := 0; i < vVal.Len(); i++ {
 			field := vVal.Index(i)
@@ -124,6 +124,8 @@ func (p *TSVProtocol) UnmarshalKVs(key string, values []string, k interface{}, v
 					continue // skip
 				}
 			}
+		} else if isPrimitive(vType.Kind()) {
+			fmt.Sscan(vs[0], e.Elem().Addr().Interface())
 		}
 
 		// add it to our list
@@ -131,6 +133,42 @@ func (p *TSVProtocol) UnmarshalKVs(key string, values []string, k interface{}, v
 	}
 
 	vsPtrValue.Elem().Set(v)
+}
+
+func isPrimitive(k reflect.Kind) bool {
+
+	switch k {
+	case reflect.Bool:
+		fallthrough
+	case reflect.Int:
+		fallthrough
+	case reflect.Int8:
+		fallthrough
+	case reflect.Int16:
+		fallthrough
+	case reflect.Int32:
+		fallthrough
+	case reflect.Int64:
+		fallthrough
+	case reflect.Uint:
+		fallthrough
+	case reflect.Uint8:
+		fallthrough
+	case reflect.Uint16:
+		fallthrough
+	case reflect.Uint32:
+		fallthrough
+	case reflect.Uint64:
+		fallthrough
+	case reflect.Float32:
+		fallthrough
+	case reflect.Float64:
+		fallthrough
+	case reflect.String:
+		return true
+	}
+
+	return false
 }
 
 func primitiveToString(v reflect.Value) string {
