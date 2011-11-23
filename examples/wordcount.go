@@ -107,7 +107,7 @@ var cpuprofile = flag.String("cpuprofile", "", "write cpu profile to file")
 
 func main() {
 
-	var use_proto = flag.String("proto", "wc", "use protocol (json/wc)")
+	var use_proto = flag.String("proto", "wc", "use protocol (json/wc/tsv)")
 
 	flag.Parse()
 
@@ -126,6 +126,8 @@ func main() {
 		proto = new(dmrgo.JSONProtocol)
 	} else if *use_proto == "wc" {
 		proto = new(WordCountProto)
+	} else if *use_proto == "tsv" {
+		proto = new(dmrgo.TSVProtocol)
 	} else {
 		fmt.Println("unknown proto=", use_proto)
 		os.Exit(1)
