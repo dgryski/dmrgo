@@ -37,16 +37,15 @@ func (p *JSONProtocol) UnmarshalKVs(key string, values []string, k interface{}, 
 	vsPtrValue := reflect.ValueOf(vs)
 	vsType := reflect.TypeOf(vs).Elem()
 
-	v := reflect.New(vsType).Elem()
-	e := reflect.New(vsType.Elem())
+	v := reflect.MakeSlice(vsType, len(values), len(values))
 
-	for _, js := range values {
-		err := json.Unmarshal([]byte(js), e.Interface())
+	for i, js := range values {
+		e := v.Index(i)
+		err := json.Unmarshal([]byte(js), e.Addr().Interface())
 		if err != nil {
 			// skip, for now
 			continue
 		}
-		v = reflect.Append(v, e.Elem())
 	}
 
 	vsPtrValue.Elem().Set(v)
@@ -83,7 +82,8 @@ func (p *TSVProtocol) MarshalKV(key interface{}, value interface{}) *KeyValue {
 	} else if vType.Kind() == reflect.Array || vType.Kind() == reflect.Slice {
 		for i := 0; i < vVal.Len(); i++ {
 			field := vVal.Index(i)
-			v := fmt.Sprint(field.Interface())
+                        // arrays/slices must be of primitives
+			v := primitiveToString(field)
 			vs = append(vs, v)
 		}
 	}
@@ -101,35 +101,32 @@ func (p *TSVProtocol) UnmarshalKVs(key string, values []string, k interface{}, v
 	vsType := reflect.TypeOf(vs).Elem()
 	vType := vsType.Elem()
 
-	v := reflect.New(vsType).Elem()
+	v := reflect.MakeSlice(vsType, len(values), len(values))
 
-	for _, s := range values {
+	for vi, s := range values {
 		vs := strings.Split(s, "\t")
 
 		// create our new element
-		e := reflect.New(vsType.Elem())
+		e := v.Index(vi)
 
 		// figure out what kind we need to unpack our data into
 		if vType.Kind() == reflect.Struct {
 			for i := 0; i < vType.NumField(); i++ {
-				_, err := fmt.Sscan(vs[i], e.Elem().Field(i).Addr().Interface())
+				_, err := fmt.Sscan(vs[i], e.Field(i).Addr().Interface())
 				if err != nil {
 					continue // skip
 				}
 			}
 		} else if vType.Kind() == reflect.Array {
 			for i := 0; i < vType.Len(); i++ {
-				_, err := fmt.Sscan(vs[i], e.Elem().Index(i).Addr().Interface())
+				_, err := fmt.Sscan(vs[i], e.Index(i).Addr().Interface())
 				if err != nil {
 					continue // skip
 				}
 			}
 		} else if isPrimitive(vType.Kind()) {
-			fmt.Sscan(vs[0], e.Elem().Addr().Interface())
+			fmt.Sscan(vs[0], e.Addr().Interface())
 		}
-
-		// add it to our list
-		v = reflect.Append(v, e.Elem())
 	}
 
 	vsPtrValue.Elem().Set(v)
@@ -210,5 +207,5 @@ func primitiveToString(v reflect.Value) string {
 		return v.String()
 	}
 
-	return "(unknown)"
+	return "(unknown type " + v.Kind() + ")";
 }
