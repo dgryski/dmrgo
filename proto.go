@@ -207,5 +207,5 @@ func primitiveToString(v reflect.Value) string {
 		return v.String()
 	}
 
-	return "(unknown type " + string(v.Kind()) + ")";
+	return "(unknown type " + string(v.Kind()) + ")"
 }
