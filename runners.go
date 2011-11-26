@@ -218,7 +218,8 @@ func Main(mrjob MapReduceJob) {
 	emitter.Flush()
 }
 
-// run the mapping phase, calling the map routine on key/value pairs on stdin and writing the results to stdout
+// run the mapping phase, calling the map routine on key/value pairs from the Reader
+// The users' Map routine will write any key/value pairs generated to the Emitter
 func mapper(mrjob MapReduceJob, r io.Reader, emitter Emitter) {
 
 	br := bufio.NewReader(r)
@@ -238,8 +239,9 @@ func mapper_final(mrjob MapReduceJob, emitter Emitter) {
 	mrjob.MapFinal(emitter)
 }
 
-// run the mapping phase, calling the reduce routine on key/[]value read from stdin and writing the results to stdout
-// We aggregate the values that have been mapped with the same key, then call the users Reduce function
+// run the reduce phase, calling the reduce routine on key/[]value read the Reader.
+// We aggregate the values that have been mapped with the same key, then call the users' Reduce function.
+// The users' Reduce routine will output any key/value pairs via the Emitter.
 func reducer(mrjob MapReduceJob, r io.Reader, emitter Emitter) {
 
 	br := bufio.NewReader(r)
