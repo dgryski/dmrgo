@@ -12,7 +12,7 @@ INFILE=/usr/share/common-licenses/GPL-3
 wordcount_test:	wordcount data.in wordcount_test_tr
 		cat data.in | ./wordcount --mapper |sort |./wordcount --reducer >data.out
 		./wordcount --mapreduce data.in
-		md5sum $(shell ls -rt red-out-p*.0000 |tail -1) data.out wordcount-tr.txt
+		md5sum `ls -rt red-out-p*.0000 |tail -1` data.out wordcount-tr.txt
 		
 wordcount_test_hadoop:	wordcount data.in
 	${HADOOP_HOME}/bin/hadoop fs -ls data.in && ${HADOOP_HOME}/bin/hadoop fs -rm data.in
