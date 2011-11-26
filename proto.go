@@ -72,19 +72,19 @@ func (p *TSVProtocol) MarshalKV(key interface{}, value interface{}) *KeyValue {
 	vVal := reflect.ValueOf(value)
 
 	if vType.Kind() == reflect.Struct {
+		vs = make([]string, vType.NumField(), vType.NumField())
 		for i := 0; i < vType.NumField(); i++ {
 			field := vVal.Field(i)
-			v := primitiveToString(field)
-			vs = append(vs, v)
+			vs[i] = primitiveToString(field)
 		}
 	} else if isPrimitive(vType.Kind()) {
 		vs = append(vs, primitiveToString(vVal))
 	} else if vType.Kind() == reflect.Array || vType.Kind() == reflect.Slice {
+		vs = make([]string, vVal.Len(), vVal.Len())
 		for i := 0; i < vVal.Len(); i++ {
 			field := vVal.Index(i)
-                        // arrays/slices must be of primitives
-			v := primitiveToString(field)
-			vs = append(vs, v)
+			// arrays/slices must be of primitives
+			vs[i] = primitiveToString(field)
 		}
 	}
 
