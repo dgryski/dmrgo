@@ -7,11 +7,13 @@ GOFILES=\
 include $(GOROOT)/src/Make.cmd
 
 PWD=$(shell pwd)
+INFILE=/usr/share/common-licenses/GPL-3
 
-wordcount_test:	wordcount data.in
+wordcount_test:	wordcount data.in wordcount_test_tr
 		cat data.in | ./wordcount --mapper |sort |./wordcount --reducer >data.out
-		@[ "945bdd73efc277a8830305c604f3e54e  data.out" = "`md5sum data.out`" ] || echo "Fail"
-
+		./wordcount --mapreduce data.in
+		md5sum $(shell ls -rt red-out-p*.0000 |tail -1) data.out wordcount-tr.txt
+		
 wordcount_test_hadoop:	wordcount data.in
 	${HADOOP_HOME}/bin/hadoop fs -ls data.in && ${HADOOP_HOME}/bin/hadoop fs -rm data.in
 	${HADOOP_HOME}/bin/hadoop fs -put data.in data.in
@@ -21,5 +23,8 @@ wordcount_test_hadoop:	wordcount data.in
 	${HADOOP_HOME}/bin/hadoop fs -get data.out data.out
 	md5sum data.out/part-00000
 
+wordcount_test_tr:
+	cat $(INFILE) |tr 'A-Z' 'a-z' |tr -c 'a-z\n' ' ' |tr ' ' '\n' |grep -v '^$$' |sort |uniq -c |awk '{print $$2 "\t" $$1;}' >wordcount-tr.txt
+
 data.in:
-	cat /usr/share/common-licenses/GPL-3 | tr A-Z a-z |tr -c "a-z \n" ' ' >data.in
+	cp $(INFILE) data.in
