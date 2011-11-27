@@ -45,13 +45,13 @@ func (p *WordCountProto) MarshalKV(key interface{}, value interface{}) *dmrgo.Ke
 }
 
 type MRWordCount struct {
-	protocol dmrgo.MRProtocol // overkill -- we would normally just inline the un/marshal calls
+	protocol dmrgo.StreamProtocol // overkill -- we would normally just inline the un/marshal calls
 
 	// mapper variables
 	mappedWords int
 }
 
-func NewWordCount(proto dmrgo.MRProtocol) dmrgo.MapReduceJob {
+func NewWordCount(proto dmrgo.StreamProtocol) dmrgo.MapReduceJob {
 
 	mr := new(MRWordCount)
 	mr.protocol = proto
@@ -119,7 +119,7 @@ func main() {
 		defer pprof.StopCPUProfile()
 	}
 
-	var proto dmrgo.MRProtocol
+	var proto dmrgo.StreamProtocol
 
 	if *use_proto == "json" {
 		proto = new(dmrgo.JSONProtocol)

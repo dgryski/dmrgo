@@ -12,9 +12,9 @@ import (
 	"strings"
 )
 
-// MRProtocol is a set of routines for marshaling and unmarshaling key/value pairs from the input stream.
+// StreamProtocol is a set of routines for marshaling and unmarshaling key/value pairs from the input stream.
 // Map Reduce jobs can define their own protocols.
-type MRProtocol interface {
+type StreamProtocol interface {
 
 	// UnmarshalKV turns strings into their associated values.
 	// k should be a pointer to the destination value for the unmarshalled "key"

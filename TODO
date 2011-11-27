@@ -1,5 +1,5 @@
 Add multi-step jobs (map/reduce1/reduce2/...)
-Fix names: s/MRProtocol/StreamProtocol; s/M(ap)?R(educe)?//
+Fix names: s/M(ap)?R(educe)?// ?
 Expose doMap/doReduce so callers can know what stage they need to prepare for?
 Add ReduceFinal() ?
 Add more status logging for full map/reduce code (behind -v ?)
