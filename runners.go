@@ -53,7 +53,7 @@ func readLineKeyValue(br *bufio.Reader) (*KeyValue, error) {
 type MapReduceJob interface {
 	Map(key string, value string, emitter Emitter)
 
-	// Called at the end of the Map phase 
+	// Called at the end of the Map phase
 	MapFinal(emitter Emitter)
 
 	Reduce(key string, values []string, emitter Emitter)
