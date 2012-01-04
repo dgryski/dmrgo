@@ -186,7 +186,7 @@ func primitiveToString(v reflect.Value) string {
 	case reflect.Int32:
 		fallthrough
 	case reflect.Int64:
-		return strconv.Itoa64(v.Int())
+		return strconv.FormatInt(v.Int(), 10)
 
 	case reflect.Uint:
 		fallthrough
@@ -197,12 +197,12 @@ func primitiveToString(v reflect.Value) string {
 	case reflect.Uint32:
 		fallthrough
 	case reflect.Uint64:
-		return strconv.Uitoa64(v.Uint())
+		return strconv.FormatUint(v.Uint(), 10)
 
 	case reflect.Float32:
 		fallthrough
 	case reflect.Float64:
-		return strconv.Ftoa64(v.Float(), 'g', 5)
+		return strconv.FormatFloat(v.Float(), 'g', 5, 64)
 	case reflect.String:
 		return v.String()
 	}

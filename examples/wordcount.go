@@ -63,9 +63,9 @@ func (mr *MRWordCount) Map(key string, value string, emitter dmrgo.Emitter) {
 
 	lower := strings.ToLower(string(value))
 
-	letters := strings.Map(func(rune int) int {
-		if rune >= 'a' && rune <= 'z' {
-			return rune
+	letters := strings.Map(func(r rune) rune {
+		if r >= 'a' && r <= 'z' {
+			return r
 		}
 
 		return ' '
