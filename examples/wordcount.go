@@ -24,7 +24,7 @@ func (p *WordCountProto) UnmarshalKVs(key string, values []string, k interface{}
 
 	vsptr := vs.(*[]int)
 
-	v := make([]int, len(values), len(values))
+	v := make([]int, len(values))
 
 	for i, s := range values {
 		v[i], _ = strconv.Atoi(s)
