@@ -13,6 +13,7 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
+	"sync"
 )
 
 // KeyValue is the primary type for interacting with Hadoop.
@@ -47,7 +48,6 @@ func readLineKeyValue(br *bufio.Reader) (*KeyValue, error) {
 
 	return &KeyValue{k, v}, nil
 }
-
 
 // MapReduceJob is the interface expected by the job runner
 type MapReduceJob interface {
@@ -89,7 +89,7 @@ func mapreduce(mrjob MapReduceJob) {
 
 	runtime.GOMAXPROCS(optNumMappers + 1)
 	sem := make(chan int, optNumMappers) // handle 'mappers' concurrent processors
-	done := make(chan int)               // signal channel to make sure everybody has completed
+	wg := new(sync.WaitGroup)
 
 	mapperInputs := flag.Args()
 
@@ -105,9 +105,10 @@ func mapreduce(mrjob MapReduceJob) {
 		// we have multiple input files -- run up to 'mappers' of them in parallel
 
 		for i, fn := range mapperInputs {
+			wg.Add(1)
 			go func(i int, fn string) {
 				sem <- 1
-				defer func() { <-sem; done <- 1 }()
+				defer func() { <-sem }()
 
 				f, err := os.Open(fn)
 				if err != nil {
@@ -120,13 +121,11 @@ func mapreduce(mrjob MapReduceJob) {
 				mEmit.Flush()
 				mEmit.Close()
 				f.Close()
+				wg.Done()
 			}(i, fn)
 		}
 
-		// wait for mappers to finish
-		for i := 0; i < len(mapperInputs); i++ {
-			<-done
-		}
+		wg.Wait()
 
 		// then launch mapper_final
 		mEmit := newPartitionEmitter(uint(optNumPartitions), fmt.Sprintf("tmp-map-out-p%d-f%d", pid, len(mapperInputs)))
@@ -137,10 +136,12 @@ func mapreduce(mrjob MapReduceJob) {
 
 	for i := 0; i < optNumPartitions; i++ {
 
+		wg.Add(1)
+
 		go func(i int) {
 
 			sem <- 1
-			defer func() { <-sem; done <- 1 }()
+			defer func() { <-sem }()
 
 			fns, _ := filepath.Glob(fmt.Sprintf("tmp-map-out-p%d-f*.%04d", pid, i))
 
@@ -167,14 +168,11 @@ func mapreduce(mrjob MapReduceJob) {
 			os.Remove(redin)
 			rEmit.Flush()
 			rout.Close()
+			wg.Done()
 		}(i)
 	}
 
-	// wait for reducers to finish
-	for i := 0; i < optNumPartitions; i++ {
-		<-done
-		// stdout? then cat just-created file then unlink it
-	}
+	wg.Wait()
 
 	if optNumPartitions == 1 {
 		fmt.Printf("output is in: red-out-p%d.0000\n", pid)
