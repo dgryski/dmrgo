@@ -91,7 +91,6 @@ func mapreduce(mrjob MapReduceJob) {
 
 	pid := os.Getpid()
 
-	runtime.GOMAXPROCS(optNumMappers + 1)
 	wg := new(sync.WaitGroup)
 
 	mapperInputFiles := flag.Args()
