@@ -69,8 +69,11 @@ var optDoMapReduce bool
 // how many output partitions should we use
 var optNumPartitions int
 
-// how many concurrent mappers/reducer should we try to use
+// how many concurrent mappers should we try to use
 var optNumMappers int
+
+// how many concurrent reducers should we try to use
+var optNumReducers int
 
 func init() {
 	flag.BoolVar(&optDoMap, "mapper", false, "run mapper code on stdin")
@@ -78,6 +81,7 @@ func init() {
 	flag.IntVar(&optNumPartitions, "partitions", 1, "parition data into sets")
 	flag.BoolVar(&optDoMapReduce, "mapreduce", false, "run full map/reduce")
 	flag.IntVar(&optNumMappers, "mappers", 4, "number of map processes")
+	flag.IntVar(&optNumReducers, "reducers", 4, "number of reducer processes")
 }
 
 func mapreduce(mrjob MapReduceJob) {
@@ -88,89 +92,111 @@ func mapreduce(mrjob MapReduceJob) {
 	pid := os.Getpid()
 
 	runtime.GOMAXPROCS(optNumMappers + 1)
-	sem := make(chan int, optNumMappers) // handle 'mappers' concurrent processors
 	wg := new(sync.WaitGroup)
 
-	mapperInputs := flag.Args()
+	mapperInputFiles := flag.Args()
 
 	// no input files -- read from stdin
-	if len(mapperInputs) == 0 {
+	if len(mapperInputFiles) == 0 {
 		mEmit := newPartitionEmitter(uint(optNumPartitions), fmt.Sprintf("tmp-map-out-p%d-f0", pid))
 		mapper(mrjob, os.Stdin, mEmit)
 		mapper_final(mrjob, mEmit)
 		mEmit.Flush()
 		mEmit.Close()
-		mapperInputs = []string{"(stdin)"}
+		mapperInputFiles = []string{"(stdin)"}
 	} else {
 		// we have multiple input files -- run up to 'mappers' of them in parallel
 
-		for i, fn := range mapperInputs {
-			wg.Add(1)
-			go func(i int, fn string) {
-				sem <- 1
-				defer func() { <-sem }()
-
-				f, err := os.Open(fn)
-				if err != nil {
-					fmt.Fprintln(os.Stderr, "err opening ", f, ": ", err)
-					return
-				}
-
-				mEmit := newPartitionEmitter(uint(optNumPartitions), fmt.Sprintf("tmp-map-out-p%d-f%d", pid, i))
-				mapper(mrjob, f, mEmit)
-				mEmit.Flush()
-				mEmit.Close()
-				f.Close()
-				wg.Done()
-			}(i, fn)
+                // the type of our channel -- limit scope 'cause we don't need it anywhere else
+		type mapperFile struct {
+			index int
+			fname string
 		}
+
+		mapperWork := make(chan *mapperFile)
+
+		// launch the goroutines
+		for i := 0; i < optNumMappers; i++ {
+			wg.Add(1)
+			go func(inputs chan *mapperFile) {
+
+				for input := range inputs {
+
+					f, err := os.Open(input.fname)
+					if err != nil {
+						fmt.Fprintln(os.Stderr, "err opening ", f, ": ", err)
+						return
+					}
+
+					mEmit := newPartitionEmitter(uint(optNumPartitions), fmt.Sprintf("tmp-map-out-p%d-f%d", pid, input.index))
+					mapper(mrjob, f, mEmit)
+					mEmit.Flush()
+					mEmit.Close()
+					f.Close()
+				}
+				wg.Done()
+			}(mapperWork)
+		}
+
+		// and send the work
+		for i, fname := range mapperInputFiles {
+			mapperWork <- &mapperFile{i, fname}
+		}
+		close(mapperWork)
 
 		wg.Wait()
 
 		// then launch mapper_final
-		mEmit := newPartitionEmitter(uint(optNumPartitions), fmt.Sprintf("tmp-map-out-p%d-f%d", pid, len(mapperInputs)))
+		mEmit := newPartitionEmitter(uint(optNumPartitions), fmt.Sprintf("tmp-map-out-p%d-f%d", pid, len(mapperInputFiles)))
 		mapper_final(mrjob, mEmit)
 		mEmit.Flush()
 		mEmit.Close()
 	}
 
-	for i := 0; i < optNumPartitions; i++ {
+	partitions := make(chan int)
+
+	for i := 0; i < optNumReducers; i++ {
 
 		wg.Add(1)
 
-		go func(i int) {
+		go func(work chan int) {
 
-			sem <- 1
-			defer func() { <-sem }()
+			for partition := range work {
 
-			fns, _ := filepath.Glob(fmt.Sprintf("tmp-map-out-p%d-f*.%04d", pid, i))
+				fns, _ := filepath.Glob(fmt.Sprintf("tmp-map-out-p%d-f*.%04d", pid, partition))
 
-			redin := fmt.Sprintf("tmp-red-in-p%d.%04d", pid, i)
+				redin := fmt.Sprintf("tmp-red-in-p%d.%04d", pid, partition)
 
-			cmdline := []string{"sort", "-o", redin}
-			cmdline = append(cmdline, fns...)
+				cmdline := []string{"sort", "-o", redin}
+				cmdline = append(cmdline, fns...)
 
-			// sort
-			p, err := os.StartProcess("/usr/bin/sort", cmdline, attr)
-			if err != nil {
-				fmt.Fprintln(os.Stderr, "err running sort: ", err)
+				// sort
+				p, err := os.StartProcess("/usr/bin/sort", cmdline, attr)
+				if err != nil {
+					fmt.Fprintln(os.Stderr, "err running sort: ", err)
+				}
+				p.Wait(0)
+
+				// reduce
+				f, _ := os.Open(redin)
+				rout, _ := os.Create(fmt.Sprintf("red-out-p%d.%04d", pid, partition))
+				rEmit := newPrintEmitter(bufio.NewWriter(rout))
+				reducer(mrjob, f, rEmit)
+				for _, fn := range fns {
+					os.Remove(fn)
+				}
+				os.Remove(redin)
+				rEmit.Flush()
+				rout.Close()
 			}
-			p.Wait(0)
-
-			// reduce
-			f, _ := os.Open(redin)
-			rout, _ := os.Create(fmt.Sprintf("red-out-p%d.%04d", pid, i))
-			rEmit := newPrintEmitter(bufio.NewWriter(rout))
-			reducer(mrjob, f, rEmit)
-			for _, fn := range fns {
-				os.Remove(fn)
-			}
-			os.Remove(redin)
-			rEmit.Flush()
-			rout.Close()
 			wg.Done()
-		}(i)
+		}(partitions)
 	}
+
+	for i := 0; i < optNumPartitions; i++ {
+		partitions <- i
+	}
+	close(partitions)
 
 	wg.Wait()
 
