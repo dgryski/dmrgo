@@ -4,7 +4,7 @@
 package main
 
 import (
-	"../_obj/dmrgo"
+	"dmrgo"
 	"flag"
 	"fmt"
 	"log"
