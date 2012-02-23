@@ -1,13 +1,12 @@
-include $(GOROOT)/src/Make.inc
-
 TARG=wordcount
 GOFILES=\
 	wordcount.go
 
-include $(GOROOT)/src/Make.cmd
-
 PWD=$(shell pwd)
 INFILE=/usr/share/common-licenses/GPL-3
+
+wordcount:	wordcount.go
+	go build -o $@
 
 wordcount_test:	wordcount data.in wordcount_test_tr
 		cat data.in | ./wordcount --mapper |sort |./wordcount --reducer >data.out
