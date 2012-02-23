@@ -173,7 +173,7 @@ func mapreduce(mrjob MapReduceJob) {
 				if err != nil {
 					fmt.Fprintln(os.Stderr, "err running sort: ", err)
 				}
-				p.Wait(0)
+				p.Wait()
 
 				// reduce
 				f, _ := os.Open(redin)
