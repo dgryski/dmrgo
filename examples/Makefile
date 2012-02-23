@@ -1,7 +1,3 @@
-TARG=wordcount
-GOFILES=\
-	wordcount.go
-
 PWD=$(shell pwd)
 INFILE=/usr/share/common-licenses/GPL-3
 
