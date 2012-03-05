@@ -4,7 +4,7 @@
 package main
 
 import (
-	"dmrgo"
+	"github.com/dgryski/dmrgo"
 	"flag"
 	"fmt"
 	"log"
