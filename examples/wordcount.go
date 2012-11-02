@@ -4,14 +4,15 @@
 package main
 
 import (
-	"github.com/dgryski/dmrgo"
 	"flag"
 	"fmt"
+	"github.com/dgryski/dmrgo"
 	"log"
 	"os"
 	"runtime/pprof"
 	"strconv"
 	"strings"
+	"sync/atomic"
 )
 
 // As example, just to show we can write our own custom protocols
@@ -48,7 +49,7 @@ type MRWordCount struct {
 	protocol dmrgo.StreamProtocol // overkill -- we would normally just inline the un/marshal calls
 
 	// mapper variables
-	mappedWords int
+	mappedWords uint32
 }
 
 func NewWordCount(proto dmrgo.StreamProtocol) dmrgo.MapReduceJob {
@@ -75,17 +76,19 @@ func (mr *MRWordCount) Map(key string, value string, emitter dmrgo.Emitter) {
 	trimmed := strings.TrimSpace(letters)
 	words := strings.Fields(trimmed)
 
+	w := uint32(0)
 	for _, word := range words {
-		mr.mappedWords++
+		w++
 		kv := mr.protocol.MarshalKV(word, 1)
 		emitter.Emit(kv.Key, kv.Value)
 	}
+	atomic.AddUint32(&mr.mappedWords, w)
 
 }
 
 func (mr *MRWordCount) MapFinal(emitter dmrgo.Emitter) {
 	dmrgo.Statusln("finished -- mapped ", mr.mappedWords)
-	dmrgo.IncrCounter("Program", "mapped words", mr.mappedWords)
+	dmrgo.IncrCounter("Program", "mapped words", int(mr.mappedWords))
 }
 
 func (mr *MRWordCount) Reduce(key string, values []string, emitter dmrgo.Emitter) {
