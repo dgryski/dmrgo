@@ -21,7 +21,7 @@ type StreamProtocol interface {
 	// vs should be a pointer to an array for the unmarshalled "values"
 	UnmarshalKVs(key string, values []string, k interface{}, vs interface{})
 
-	// MarshalKV turns a key/value pair into a KeyValue 
+	// MarshalKV turns a key/value pair into a KeyValue
 	MarshalKV(key interface{}, value interface{}) *KeyValue
 }
 
