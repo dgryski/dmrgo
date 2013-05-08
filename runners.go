@@ -52,7 +52,7 @@ func readLineKeyValue(br *bufio.Reader) (*KeyValue, error) {
 type MapReduceJob interface {
 	Map(key string, value string, emitter Emitter)
 
-	// Called at the end of the Map phase 
+	// Called at the end of the Map phase
 	MapFinal(emitter Emitter)
 
 	Reduce(key string, values []string, emitter Emitter)
@@ -105,7 +105,7 @@ func mapreduce(mrjob MapReduceJob) {
 	} else {
 		// we have multiple input files -- run up to 'mappers' of them in parallel
 
-                // the type of our channel -- limit scope 'cause we don't need it anywhere else
+		// the type of our channel -- limit scope 'cause we don't need it anywhere else
 		type mapperFile struct {
 			index int
 			fname string

@@ -5,8 +5,8 @@
 package dmrgo
 
 import (
-	"os"
 	"fmt"
+	"os"
 )
 
 // Statusln updates the Hadoop job status.  The arguments are passed to fmt.Sprintln
