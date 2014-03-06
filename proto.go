@@ -30,6 +30,7 @@ type JSONProtocol struct {
 	// empty -- just a type
 }
 
+// UnmarshalKVs implements the StreamProtocol interface
 func (p *JSONProtocol) UnmarshalKVs(key string, values []string, k interface{}, vs interface{}) {
 
 	json.Unmarshal([]byte(key), &k)
@@ -51,16 +52,19 @@ func (p *JSONProtocol) UnmarshalKVs(key string, values []string, k interface{}, 
 	vsPtrValue.Elem().Set(v)
 }
 
+// MarshalKV implements the StreamProtocol interface
 func (p *JSONProtocol) MarshalKV(key interface{}, value interface{}) *KeyValue {
 	k, _ := json.Marshal(key)
 	v, _ := json.Marshal(value)
 	return &KeyValue{string(k), string(v)}
 }
 
+// TSVProtocol outputs keys as tab-separated lines
 type TSVProtocol struct {
 	// empty -- just a type
 }
 
+// MarshalKV implements the StreamProtocol interface
 func (p *TSVProtocol) MarshalKV(key interface{}, value interface{}) *KeyValue {
 
 	kVal := reflect.ValueOf(key)
@@ -93,6 +97,7 @@ func (p *TSVProtocol) MarshalKV(key interface{}, value interface{}) *KeyValue {
 	return &KeyValue{k, vals}
 }
 
+// UnmarshalKVs implements the StreamProtocol interface
 func (p *TSVProtocol) UnmarshalKVs(key string, values []string, k interface{}, vs interface{}) {
 
 	fmt.Sscan(key, &k)

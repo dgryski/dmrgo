@@ -11,6 +11,7 @@ import (
 	"os"
 )
 
+// Emitter emits key/value pairs
 type Emitter interface {
 	Emit(key string, value string)
 	Flush()
