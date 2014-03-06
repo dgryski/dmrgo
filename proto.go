@@ -67,8 +67,8 @@ type TSVProtocol struct {
 // MarshalKV implements the StreamProtocol interface
 func (p *TSVProtocol) MarshalKV(key interface{}, value interface{}) *KeyValue {
 
-	kVal := reflect.ValueOf(key)
-	k := primitiveToString(kVal)
+	keyVal := reflect.ValueOf(key)
+	k := primitiveToString(keyVal)
 
 	var vs []string
 
