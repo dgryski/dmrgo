@@ -140,33 +140,11 @@ func (p *TSVProtocol) UnmarshalKVs(key string, values []string, k interface{}, v
 func isPrimitive(k reflect.Kind) bool {
 
 	switch k {
-	case reflect.Bool:
-		fallthrough
-	case reflect.Int:
-		fallthrough
-	case reflect.Int8:
-		fallthrough
-	case reflect.Int16:
-		fallthrough
-	case reflect.Int32:
-		fallthrough
-	case reflect.Int64:
-		fallthrough
-	case reflect.Uint:
-		fallthrough
-	case reflect.Uint8:
-		fallthrough
-	case reflect.Uint16:
-		fallthrough
-	case reflect.Uint32:
-		fallthrough
-	case reflect.Uint64:
-		fallthrough
-	case reflect.Float32:
-		fallthrough
-	case reflect.Float64:
-		fallthrough
-	case reflect.String:
+	case reflect.Bool,
+		reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64,
+		reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64,
+		reflect.Float32, reflect.Float64,
+		reflect.String:
 		return true
 	}
 
@@ -182,31 +160,14 @@ func primitiveToString(v reflect.Value) string {
 			return "1"
 		}
 		return "0"
-	case reflect.Int:
-		fallthrough
-	case reflect.Int8:
-		fallthrough
-	case reflect.Int16:
-		fallthrough
-	case reflect.Int32:
-		fallthrough
-	case reflect.Int64:
+
+	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
 		return strconv.FormatInt(v.Int(), 10)
 
-	case reflect.Uint:
-		fallthrough
-	case reflect.Uint8:
-		fallthrough
-	case reflect.Uint16:
-		fallthrough
-	case reflect.Uint32:
-		fallthrough
-	case reflect.Uint64:
+	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
 		return strconv.FormatUint(v.Uint(), 10)
 
-	case reflect.Float32:
-		fallthrough
-	case reflect.Float64:
+	case reflect.Float32, reflect.Float64:
 		return strconv.FormatFloat(v.Float(), 'g', 5, 64)
 	case reflect.String:
 		return v.String()
