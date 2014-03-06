@@ -1,5 +1,5 @@
 /*
-dmrgo is a Go library for writing map/reduce jobs.
+Package dmrgo is a Go library for writing map/reduce jobs.
 
 It can be used with Hadoop's streaming protocol, but also includes a standalone
 map/reduce implementation (including partitioner) for 'small' jobs (~5G-10G).

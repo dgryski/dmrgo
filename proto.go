@@ -1,8 +1,8 @@
+package dmrgo
+
 // Protocols for un/marshaling stream values
 // Copyright (c) 2011 Damian Gryski <damian@gryski.com>
 // License: GPLv3 or, at your option, any later version
-
-package dmrgo
 
 import (
 	"encoding/json"

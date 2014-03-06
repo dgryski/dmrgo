@@ -1,8 +1,8 @@
+package dmrgo
+
 // Logic for handling mapper and reducer output
 // Copyright (c) 2011 Damian Gryski <damian@gryski.com>
 // License: GPLv3 or, at your option, any later version
-
-package dmrgo
 
 import (
 	"bufio"
