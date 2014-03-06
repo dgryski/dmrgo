@@ -98,7 +98,7 @@ func mapreduce(mrjob MapReduceJob) {
 	if len(mapperInputFiles) == 0 {
 		mEmit := newPartitionEmitter(uint(optNumPartitions), fmt.Sprintf("tmp-map-out-p%d-f0", pid))
 		mapper(mrjob, os.Stdin, mEmit)
-		mapper_final(mrjob, mEmit)
+		mapperFinal(mrjob, mEmit)
 		mEmit.Flush()
 		mEmit.Close()
 		mapperInputFiles = []string{"(stdin)"}
@@ -144,9 +144,9 @@ func mapreduce(mrjob MapReduceJob) {
 
 		wg.Wait()
 
-		// then launch mapper_final
+		// then launch mapperFinal
 		mEmit := newPartitionEmitter(uint(optNumPartitions), fmt.Sprintf("tmp-map-out-p%d-f%d", pid, len(mapperInputFiles)))
-		mapper_final(mrjob, mEmit)
+		mapperFinal(mrjob, mEmit)
 		mEmit.Flush()
 		mEmit.Close()
 	}
@@ -230,7 +230,7 @@ func Main(mrjob MapReduceJob) {
 	if optDoMap {
 		mapper(mrjob, os.Stdin, emitter)
 		// handle any finalization from the mapper
-		mapper_final(mrjob, emitter)
+		mapperFinal(mrjob, emitter)
 	}
 
 	if optDoReduce {
@@ -257,7 +257,7 @@ func mapper(mrjob MapReduceJob, r io.Reader, emitter Emitter) {
 }
 
 // run the cleanup phase for the mapper
-func mapper_final(mrjob MapReduceJob, emitter Emitter) {
+func mapperFinal(mrjob MapReduceJob, emitter Emitter) {
 	mrjob.MapFinal(emitter)
 }
 
